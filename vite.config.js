@@ -11,13 +11,21 @@ export default defineConfig({
         name: 'Trans Focused Period Tracker',
         short_name: 'TFPT',
         description: 'A private, local cycle tracker for trans women on HRT',
-        theme_color: '#0e0b1e',
-        background_color: '#0e0b1e',
+        theme_color: '#1a1533',
+        background_color: '#1a1533',
         display: 'standalone',
         start_url: '/',
         icons: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+        ],
+        screenshots: [
+          {
+            src: 'screenshots/mobile.png',
+            sizes: '390x844',
+            type: 'image/png',
+            form_factor: 'narrow'
+          }
         ]
       }
     })
