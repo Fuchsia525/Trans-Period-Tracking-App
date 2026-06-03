@@ -1,17 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import {
   getAllSymptoms, saveSymptom, deleteSymptom,
   getSetting, setSetting,
   exportData, importData,
+  getHRTSchedule, setHRTSchedule,
   DEFAULT_SYMPTOM_IDS,
 } from '../db/db'
+import { TutorialContext } from '../context'
 
+const DELIVERY_METHODS = ['Injectable EV', 'Injectable EC', 'Patch', 'Gel', 'Oral', 'Sublingual', 'Other']
+const DOSAGE_UNITS     = ['mg', 'mcg', 'ml', 'g']
 const INPUT_TYPES = [
   { value: 'boolean', label: 'Yes / No' },
   { value: 'scale',   label: 'Scale 1–5' },
   { value: 'tags',    label: 'Text note' },
 ]
-
 const CATEGORIES = ['Mood & emotional', 'Physical', 'Energy & cognition', 'Custom']
 
 // ── Single editable symptom row ────────────────────────────────
@@ -19,15 +22,19 @@ function SymptomRow({ symptom, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false)
   const [name, setName]       = useState(symptom.name)
   const isDefault             = DEFAULT_SYMPTOM_IDS.includes(symptom.id)
+  // undefined treated as true for existing symptoms without the field
+  const isDaily               = symptom.dailyTracking !== false
 
   async function handleToggleEnabled() {
     await onUpdate({ ...symptom, enabled: !symptom.enabled })
   }
 
+  async function handleToggleDaily() {
+    await onUpdate({ ...symptom, dailyTracking: !isDaily })
+  }
+
   async function handleSaveName() {
-    if (name.trim()) {
-      await onUpdate({ ...symptom, name: name.trim() })
-    }
+    if (name.trim()) await onUpdate({ ...symptom, name: name.trim() })
     setEditing(false)
   }
 
@@ -37,7 +44,6 @@ function SymptomRow({ symptom, onUpdate, onDelete }) {
 
   return (
     <div className={`sym-edit-row${!symptom.enabled ? ' sym-edit-row--disabled' : ''}`}>
-      {/* Enable toggle */}
       <button
         className={`sym-enable-btn${symptom.enabled ? ' sym-enable-btn--on' : ''}`}
         onClick={handleToggleEnabled}
@@ -46,7 +52,6 @@ function SymptomRow({ symptom, onUpdate, onDelete }) {
         {symptom.enabled ? '●' : '○'}
       </button>
 
-      {/* Name */}
       <div className="sym-edit-name">
         {editing ? (
           <input
@@ -64,14 +69,21 @@ function SymptomRow({ symptom, onUpdate, onDelete }) {
         )}
       </div>
 
-      {/* Input type */}
+      <button
+        type="button"
+        className={`sym-daily-btn${isDaily ? ' sym-daily-btn--on' : ''}`}
+        onClick={handleToggleDaily}
+        title="Show in daily log"
+      >
+        Daily
+      </button>
+
       <select className="sym-type-select" value={symptom.inputType} onChange={handleTypeChange}>
         {INPUT_TYPES.map(t => (
           <option key={t.value} value={t.value}>{t.label}</option>
         ))}
       </select>
 
-      {/* Delete (custom symptoms only) */}
       {!isDefault && (
         <button className="sym-delete-btn" onClick={() => onDelete(symptom.id)} title="Delete">✕</button>
       )}
@@ -118,27 +130,66 @@ function AddSymptomForm({ onAdd, onCancel }) {
 
 // ── Main Settings screen ───────────────────────────────────────
 export default function Settings() {
-  const [symptoms,   setSymptoms]   = useState([])
-  const [hrtMethod,  setHrtMethod]  = useState('')
-  const [hrtFreq,    setHrtFreq]    = useState('')
-  const [showAddForm,setShowAddForm]= useState(false)
-  const [importMsg,  setImportMsg]  = useState('')
-  const [loading,    setLoading]    = useState(true)
+  const tutorial = useContext(TutorialContext)
+
+  const [symptoms,    setSymptoms]    = useState([])
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [importMsg,   setImportMsg]   = useState('')
+  const [loading,     setLoading]     = useState(true)
+
+  // HRT profile fields
+  const [hrtMethod,      setHrtMethod]      = useState('')
+  const [hrtDosage,      setHrtDosage]      = useState('')
+  const [hrtDosageUnit,  setHrtDosageUnit]  = useState('mg')
+  const [hrtAntiandrogen,setHrtAntiandrogen]= useState('')
+  const [hrtProgesterone,setHrtProgesterone]= useState('')
+  const [hrtBrand,       setHrtBrand]       = useState('')
+  const [showMoreHRT,    setShowMoreHRT]    = useState(false)
+
+  // Schedule fields
+  const [freqValue,   setFreqValue]   = useState('')
+  const [freqUnit,    setFreqUnit]    = useState('days')
+  const [lastIntake,  setLastIntake]  = useState('')
+
+  // Notifications
+  const [notifEnabled, setNotifEnabled] = useState(false)
+  const [notifState,   setNotifState]   = useState('idle') // idle | denied | unsupported
 
   useEffect(() => {
     async function load() {
-      const [syms, method, freq] = await Promise.all([
+      const [syms, method, dosage, antiandrogen, progesterone, brand, schedule, notif] = await Promise.all([
         getAllSymptoms(),
         getSetting('hrtMethod'),
-        getSetting('hrtFrequency'),
+        getSetting('hrtDosage'),
+        getSetting('hrtAntiandrogen'),
+        getSetting('hrtProgesterone'),
+        getSetting('hrtBrand'),
+        getHRTSchedule(),
+        getSetting('notificationsEnabled'),
       ])
+
       setSymptoms(syms)
       setHrtMethod(method ?? '')
-      setHrtFreq(freq ?? '')
+      if (dosage) {
+        const parts = dosage.split(' ')
+        setHrtDosage(parts[0] ?? '')
+        if (parts[1] && ['mg', 'mcg', 'ml', 'g'].includes(parts[1])) setHrtDosageUnit(parts[1])
+      }
+      setHrtAntiandrogen(antiandrogen ?? '')
+      setHrtProgesterone(progesterone ?? '')
+      setHrtBrand(brand ?? '')
+      if (schedule) {
+        setFreqValue(String(schedule.frequencyValue))
+        setFreqUnit(schedule.frequencyUnit)
+        setLastIntake(schedule.lastIntakeDate)
+      }
+      setNotifEnabled(!!notif)
       setLoading(false)
     }
     load()
   }, [])
+
+  // ── Symptom handlers ───────────────────────────────────────
 
   async function handleUpdateSymptom(updated) {
     await saveSymptom(updated)
@@ -154,10 +205,9 @@ export default function Settings() {
   async function handleAddSymptom({ name, category, inputType }) {
     const newSym = {
       id: `custom-${Date.now()}`,
-      name,
-      category,
-      inputType,
+      name, category, inputType,
       enabled: true,
+      dailyTracking: true,
       order: symptoms.length,
     }
     await saveSymptom(newSym)
@@ -165,19 +215,62 @@ export default function Settings() {
     setShowAddForm(false)
   }
 
+  // ── HRT profile save ───────────────────────────────────────
+
   async function handleHRTBlur() {
-    await setSetting('hrtMethod', hrtMethod)
-    await setSetting('hrtFrequency', hrtFreq)
+    await Promise.all([
+      setSetting('hrtMethod', hrtMethod),
+      setSetting('hrtDosage', hrtDosage ? `${hrtDosage} ${hrtDosageUnit}` : ''),
+      setSetting('hrtAntiandrogen', hrtAntiandrogen),
+      setSetting('hrtProgesterone', hrtProgesterone),
+      setSetting('hrtBrand', hrtBrand),
+    ])
   }
 
+  // ── Schedule save ──────────────────────────────────────────
+
+  async function handleScheduleBlur() {
+    if (freqValue && lastIntake) {
+      await setHRTSchedule({
+        frequencyValue: Number(freqValue),
+        frequencyUnit:  freqUnit,
+        lastIntakeDate: lastIntake,
+      })
+    }
+  }
+
+  // ── Notification toggle ────────────────────────────────────
+
+  async function handleNotifToggle() {
+    if (notifEnabled) {
+      setNotifEnabled(false)
+      await setSetting('notificationsEnabled', false)
+      return
+    }
+    if (!('Notification' in window)) {
+      setNotifState('unsupported')
+      return
+    }
+    const result = await Notification.requestPermission()
+    if (result === 'granted') {
+      setNotifState('idle')
+      setNotifEnabled(true)
+      await setSetting('notificationsEnabled', true)
+    } else {
+      setNotifState('denied')
+    }
+  }
+
+  // ── Import / Export ────────────────────────────────────────
+
   async function handleExport() {
-    const data     = await exportData()
-    const json     = JSON.stringify(data, null, 2)
-    const blob     = new Blob([json], { type: 'application/json' })
-    const url      = URL.createObjectURL(blob)
-    const a        = document.createElement('a')
-    a.href         = url
-    a.download     = `tfpt-export-${format(new Date(), 'yyyy-MM-dd')}.json`
+    const data = await exportData()
+    const json = JSON.stringify(data, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `tfpt-export-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -200,10 +293,9 @@ export default function Settings() {
       }
     }
     reader.readAsText(file)
-    e.target.value = '' // reset file input
+    e.target.value = ''
   }
 
-  // Group symptoms by category for display
   const grouped = symptoms.reduce((acc, s) => {
     if (!acc[s.category]) acc[s.category] = []
     acc[s.category].push(s)
@@ -218,26 +310,150 @@ export default function Settings() {
       {/* HRT Profile */}
       <div className="card">
         <div className="section-title">HRT profile</div>
-        <p className="settings-hint">This is for your reference only — not used for predictions.</p>
+        <p className="settings-hint">For your reference only — not used for predictions.</p>
+
         <div className="settings-field">
           <label className="settings-label">Delivery method</label>
-          <input
+          <select
             className="settings-input"
-            placeholder="e.g. Injectable EV, Patches, Gel…"
             value={hrtMethod}
             onChange={e => setHrtMethod(e.target.value)}
             onBlur={handleHRTBlur}
-          />
+          >
+            <option value="">Not set</option>
+            {DELIVERY_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
         </div>
+
         <div className="settings-field">
-          <label className="settings-label">Typical frequency</label>
+          <label className="settings-label">Dosage</label>
+          <div className="onboard-split-row">
+            <input
+              className="settings-input"
+              type="text"
+              inputMode="decimal"
+              placeholder="e.g. 5"
+              value={hrtDosage}
+              onChange={e => setHrtDosage(e.target.value)}
+              onBlur={handleHRTBlur}
+            />
+            <select
+              className="settings-input onboard-unit-select"
+              value={hrtDosageUnit}
+              onChange={e => { setHrtDosageUnit(e.target.value); handleHRTBlur() }}
+            >
+              {DOSAGE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="onboard-collapsible-btn"
+          onClick={() => setShowMoreHRT(v => !v)}
+          style={{ marginBottom: showMoreHRT ? 8 : 0 }}
+        >
+          <span className="onboard-collapsible-arrow">{showMoreHRT ? '▴' : '▾'}</span>
+          Antiandrogen, progesterone, brand name
+        </button>
+
+        {showMoreHRT && (
+          <div className="onboard-collapsible">
+            <div className="settings-field">
+              <label className="settings-label">Antiandrogen</label>
+              <input
+                className="settings-input"
+                placeholder="e.g. Spironolactone 100mg…"
+                value={hrtAntiandrogen}
+                onChange={e => setHrtAntiandrogen(e.target.value)}
+                onBlur={handleHRTBlur}
+              />
+            </div>
+            <div className="settings-field">
+              <label className="settings-label">Progesterone</label>
+              <input
+                className="settings-input"
+                placeholder="e.g. Utrogestan 100mg…"
+                value={hrtProgesterone}
+                onChange={e => setHrtProgesterone(e.target.value)}
+                onBlur={handleHRTBlur}
+              />
+            </div>
+            <div className="settings-field">
+              <label className="settings-label">Brand / product name</label>
+              <input
+                className="settings-input"
+                placeholder="e.g. Progynova, Estradot…"
+                value={hrtBrand}
+                onChange={e => setHrtBrand(e.target.value)}
+                onBlur={handleHRTBlur}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Schedule */}
+      <div className="card">
+        <div className="section-title">HRT schedule</div>
+        <p className="settings-hint">Used to calculate your next dose and show the countdown on Today.</p>
+
+        <div className="settings-field">
+          <label className="settings-label">Frequency</label>
+          <div className="onboard-split-row">
+            <input
+              className="settings-input"
+              type="number"
+              min="1"
+              placeholder="e.g. 7"
+              value={freqValue}
+              onChange={e => setFreqValue(e.target.value)}
+              onBlur={handleScheduleBlur}
+            />
+            <select
+              className="settings-input onboard-unit-select"
+              value={freqUnit}
+              onChange={e => { setFreqUnit(e.target.value); handleScheduleBlur() }}
+            >
+              <option value="days">days</option>
+              <option value="weeks">weeks</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="settings-field">
+          <label className="settings-label">Last intake date</label>
           <input
             className="settings-input"
-            placeholder="e.g. Weekly injection, Daily patch change…"
-            value={hrtFreq}
-            onChange={e => setHrtFreq(e.target.value)}
-            onBlur={handleHRTBlur}
+            type="date"
+            value={lastIntake}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={e => setLastIntake(e.target.value)}
+            onBlur={handleScheduleBlur}
           />
+        </div>
+
+        <div className="onboard-notif-card" style={{ marginTop: 4 }}>
+          <div className="onboard-notif-row">
+            <div className="onboard-notif-text">
+              <div className="onboard-notif-title">Notify me when HRT is due</div>
+              <div className="onboard-notif-hint">A notification on the due date when you open the app.</div>
+            </div>
+            <button
+              type="button"
+              className={`onboard-toggle${notifEnabled ? ' onboard-toggle--on' : ''}`}
+              onClick={handleNotifToggle}
+              aria-pressed={notifEnabled}
+            >
+              {notifEnabled ? 'On' : 'Off'}
+            </button>
+          </div>
+          {notifState === 'denied' && (
+            <p className="onboard-notif-denied">Your browser blocked notifications. Allow them in browser settings.</p>
+          )}
+          {notifState === 'unsupported' && (
+            <p className="onboard-notif-denied">Notifications aren't supported in this browser.</p>
+          )}
         </div>
       </div>
 
@@ -271,16 +487,25 @@ export default function Settings() {
         )}
       </div>
 
-      {/* Import / Export */}
+      {/* App */}
       <div className="card">
-        <div className="section-title">Data</div>
-        <p className="settings-hint">Your data lives entirely on this device. Export it to back up or move to another device.</p>
+        <div className="section-title">App</div>
 
+        {tutorial && (
+          <button
+            className="btn btn--secondary btn--full"
+            style={{ marginBottom: 12 }}
+            onClick={tutorial.openTutorial}
+          >
+            ◈ Replay tutorial
+          </button>
+        )}
+
+        <p className="settings-hint">Your data lives entirely on this device. Export it to back up or move to another device.</p>
         <div className="data-actions">
           <button className="btn btn--secondary btn--full" onClick={handleExport}>
             ↓ Export data as JSON
           </button>
-
           <label className="btn btn--secondary btn--full import-label">
             ↑ Import from JSON
             <input type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
@@ -297,14 +522,4 @@ export default function Settings() {
       <div style={{ height: 8 }} />
     </div>
   )
-}
-
-// date-fns format needed for export filename
-function format(date, fmt) {
-  const d = date
-  const pad = n => String(n).padStart(2, '0')
-  if (fmt === 'yyyy-MM-dd') {
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
-  }
-  return d.toISOString().slice(0,10)
 }

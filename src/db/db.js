@@ -87,27 +87,28 @@ export async function getDailyLogsBetween(startDate, endDate) {
 export const DEFAULT_SYMPTOM_IDS = [
   'mood-swings', 'anxiety', 'dysphoria', 'euphoria', 'irritability', 'sensitivity',
   'breast-tender', 'bloating', 'fatigue', 'headache', 'cramps', 'hot-flashes', 'nausea', 'acne',
-  'energy', 'brain-fog', 'sleep',
+  'galactorrhea', 'energy', 'brain-fog', 'sleep',
 ]
 
 export const DEFAULT_SYMPTOMS = [
-  { id: 'mood-swings',   name: 'Mood swings',             category: 'Mood & emotional',   inputType: 'boolean', enabled: true,  order: 0  },
-  { id: 'anxiety',       name: 'Anxiety',                  category: 'Mood & emotional',   inputType: 'scale',   enabled: true,  order: 1  },
-  { id: 'dysphoria',     name: 'Dysphoria',                category: 'Mood & emotional',   inputType: 'scale',   enabled: true,  order: 2  },
-  { id: 'euphoria',      name: 'Euphoria',                 category: 'Mood & emotional',   inputType: 'scale',   enabled: true,  order: 3  },
-  { id: 'irritability',  name: 'Irritability',             category: 'Mood & emotional',   inputType: 'scale',   enabled: true,  order: 4  },
-  { id: 'sensitivity',   name: 'Emotional sensitivity',    category: 'Mood & emotional',   inputType: 'boolean', enabled: true,  order: 5  },
-  { id: 'breast-tender', name: 'Breast tenderness',        category: 'Physical',           inputType: 'scale',   enabled: true,  order: 6  },
-  { id: 'bloating',      name: 'Bloating',                 category: 'Physical',           inputType: 'boolean', enabled: true,  order: 7  },
-  { id: 'fatigue',       name: 'Fatigue',                  category: 'Physical',           inputType: 'scale',   enabled: true,  order: 8  },
-  { id: 'headache',      name: 'Headache / migraine',      category: 'Physical',           inputType: 'boolean', enabled: true,  order: 9  },
-  { id: 'cramps',        name: 'Cramps / pelvic sensation',category: 'Physical',           inputType: 'boolean', enabled: true,  order: 10 },
-  { id: 'hot-flashes',   name: 'Hot flashes',              category: 'Physical',           inputType: 'boolean', enabled: false, order: 11 },
-  { id: 'nausea',        name: 'Nausea',                   category: 'Physical',           inputType: 'boolean', enabled: false, order: 12 },
-  { id: 'acne',          name: 'Skin / acne',              category: 'Physical',           inputType: 'boolean', enabled: false, order: 13 },
-  { id: 'energy',        name: 'Energy level',             category: 'Energy & cognition', inputType: 'scale',   enabled: true,  order: 14 },
-  { id: 'brain-fog',     name: 'Brain fog',                category: 'Energy & cognition', inputType: 'boolean', enabled: true,  order: 15 },
-  { id: 'sleep',         name: 'Sleep quality',            category: 'Energy & cognition', inputType: 'scale',   enabled: true,  order: 16 },
+  { id: 'mood-swings',   name: 'Mood swings',             category: 'Mood & emotional',   inputType: 'boolean', enabled: true,  dailyTracking: true, order: 0  },
+  { id: 'anxiety',       name: 'Anxiety',                  category: 'Mood & emotional',   inputType: 'scale',   enabled: true,  dailyTracking: true, order: 1  },
+  { id: 'dysphoria',     name: 'Dysphoria',                category: 'Mood & emotional',   inputType: 'scale',   enabled: true,  dailyTracking: true, order: 2  },
+  { id: 'euphoria',      name: 'Euphoria',                 category: 'Mood & emotional',   inputType: 'scale',   enabled: true,  dailyTracking: true, order: 3  },
+  { id: 'irritability',  name: 'Irritability',             category: 'Mood & emotional',   inputType: 'scale',   enabled: true,  dailyTracking: true, order: 4  },
+  { id: 'sensitivity',   name: 'Emotional sensitivity',    category: 'Mood & emotional',   inputType: 'boolean', enabled: true,  dailyTracking: true, order: 5  },
+  { id: 'breast-tender', name: 'Breast tenderness',        category: 'Physical',           inputType: 'scale',   enabled: true,  dailyTracking: true, order: 6  },
+  { id: 'bloating',      name: 'Bloating',                 category: 'Physical',           inputType: 'boolean', enabled: true,  dailyTracking: true, order: 7  },
+  { id: 'fatigue',       name: 'Fatigue',                  category: 'Physical',           inputType: 'scale',   enabled: true,  dailyTracking: true, order: 8  },
+  { id: 'headache',      name: 'Headache / migraine',      category: 'Physical',           inputType: 'boolean', enabled: true,  dailyTracking: true, order: 9  },
+  { id: 'cramps',        name: 'Cramps / pelvic sensation',category: 'Physical',           inputType: 'boolean', enabled: true,  dailyTracking: true, order: 10 },
+  { id: 'hot-flashes',   name: 'Hot flashes',              category: 'Physical',           inputType: 'boolean', enabled: false, dailyTracking: true, order: 11 },
+  { id: 'nausea',        name: 'Nausea',                   category: 'Physical',           inputType: 'boolean', enabled: false, dailyTracking: true, order: 12 },
+  { id: 'acne',          name: 'Skin / acne',              category: 'Physical',           inputType: 'boolean', enabled: false, dailyTracking: true, order: 13 },
+  { id: 'galactorrhea',  name: 'Galactorrhea / lactation', category: 'Physical',           inputType: 'boolean', enabled: false, dailyTracking: true, order: 14 },
+  { id: 'energy',        name: 'Energy level',             category: 'Energy & cognition', inputType: 'scale',   enabled: true,  dailyTracking: true, order: 15 },
+  { id: 'brain-fog',     name: 'Brain fog',                category: 'Energy & cognition', inputType: 'boolean', enabled: true,  dailyTracking: true, order: 16 },
+  { id: 'sleep',         name: 'Sleep quality',            category: 'Energy & cognition', inputType: 'scale',   enabled: true,  dailyTracking: true, order: 17 },
 ]
 
 export async function seedSymptomsIfEmpty() {
@@ -153,6 +154,37 @@ export async function setSetting(key, value) {
   await db.put('settings', value, key)
 }
 
+// ── HRT Schedule ──────────────────────────────────────────────
+
+export async function setHRTSchedule({ frequencyValue, frequencyUnit, lastIntakeDate }) {
+  await Promise.all([
+    setSetting('hrtFrequencyValue', frequencyValue),
+    setSetting('hrtFrequencyUnit',  frequencyUnit),
+    setSetting('hrtLastIntake',     lastIntakeDate),
+  ])
+}
+
+export async function getHRTSchedule() {
+  const [value, unit, lastIntake] = await Promise.all([
+    getSetting('hrtFrequencyValue'),
+    getSetting('hrtFrequencyUnit'),
+    getSetting('hrtLastIntake'),
+  ])
+  if (!value || !unit || !lastIntake) return null
+  return { frequencyValue: value, frequencyUnit: unit, lastIntakeDate: lastIntake }
+}
+
+// Returns the next expected HRT date as a 'yyyy-MM-dd' string, or null if no schedule.
+export function getNextHRTDate(schedule) {
+  if (!schedule) return null
+  const { frequencyValue, frequencyUnit, lastIntakeDate } = schedule
+  const days = frequencyUnit === 'weeks' ? frequencyValue * 7 : frequencyValue
+  const last = new Date(lastIntakeDate + 'T12:00:00')
+  const next = new Date(last)
+  next.setDate(next.getDate() + Number(days))
+  return toDateString(next)
+}
+
 // ── Import / Export ───────────────────────────────────────────
 
 export async function exportData() {
@@ -187,5 +219,8 @@ export async function importData(data) {
 
 export function toDateString(date) {
   if (typeof date === 'string') return date.slice(0, 10)
-  return date.toISOString().slice(0, 10)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }

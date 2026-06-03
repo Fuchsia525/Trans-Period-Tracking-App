@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom'
-import { seedSymptomsIfEmpty } from './db/db'
+import { seedSymptomsIfEmpty, getSetting, setSetting, getHRTSchedule, getNextHRTDate } from './db/db'
+import { TutorialContext } from './context'
 import Today from './components/Today'
 import Calendar from './components/Calendar'
 import Patterns from './components/Patterns'
 import Settings from './components/Settings'
+import Onboarding from './components/Onboarding'
+import Tutorial from './components/Tutorial'
+import LogFAB from './components/LogFAB'
 
 function TodayIcon() {
   return (
@@ -68,23 +72,76 @@ function BottomNav() {
   )
 }
 
+async function maybeNotify() {
+  try {
+    const enabled = await getSetting('notificationsEnabled')
+    if (!enabled || !('Notification' in window) || Notification.permission !== 'granted') return
+
+    const today = new Date().toISOString().slice(0, 10)
+    const alreadySent = await getSetting('hrtNotifSentDate')
+    if (alreadySent === today) return
+
+    const schedule = await getHRTSchedule()
+    const nextDate = getNextHRTDate(schedule)
+    if (nextDate !== today) return
+
+    new Notification('HRT due today', {
+      body: "Your HRT is scheduled for today. Take care of yourself 💜",
+      icon: '/favicon.ico',
+    })
+    await setSetting('hrtNotifSentDate', today)
+  } catch {
+    // Notifications are best-effort
+  }
+}
+
 function AppShell() {
-  const [ready, setReady] = useState(false)
-  useEffect(() => { seedSymptomsIfEmpty().then(() => setReady(true)) }, [])
+  const [ready,        setReady]        = useState(false)
+  const [onboarded,    setOnboarded]    = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
+
+  useEffect(() => {
+    async function init() {
+      await seedSymptomsIfEmpty()
+      const done = await getSetting('onboardingComplete')
+      setOnboarded(!!done)
+      setReady(true)
+      if (done) maybeNotify()
+    }
+    init()
+  }, [])
+
   if (!ready) return <div className="loading-screen"><div className="loading-dot" /></div>
+
+  if (!onboarded) {
+    return (
+      <Onboarding
+        onComplete={(startTutorial) => {
+          setOnboarded(true)
+          if (startTutorial) setShowTutorial(true)
+          maybeNotify()
+        }}
+      />
+    )
+  }
+
   return (
-    <div className="app-layout">
-      <Header />
-      <main className="app-main">
-        <Routes>
-          <Route path="/"         element={<Today />}    />
-          <Route path="/calendar" element={<Calendar />} />
-          <Route path="/patterns" element={<Patterns />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </main>
-      <BottomNav />
-    </div>
+    <TutorialContext.Provider value={{ openTutorial: () => setShowTutorial(true) }}>
+      <div className="app-layout">
+        <Header />
+        <main className="app-main">
+          <Routes>
+            <Route path="/"         element={<Today />}    />
+            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/patterns" element={<Patterns />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </main>
+        <BottomNav />
+      </div>
+      {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
+      <LogFAB />
+    </TutorialContext.Provider>
   )
 }
 
